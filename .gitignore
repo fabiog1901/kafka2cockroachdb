@@ -1,0 +1,10 @@
+.*
+
+!.gitignore
+
+artifacts
+certs
+
+*.ini
+*.jar
+

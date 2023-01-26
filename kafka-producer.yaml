@@ -1,0 +1,75 @@
+---
+- name: STOP GENERATOR
+  hosts: kafka_connect
+  gather_facts: no
+  become: yes
+  tags:
+    - k-producer
+  tasks:
+    - name: stop any running generator
+      run_once: yes
+      shell: |
+        # kill all current processes
+        if pgrep -f gen.py ; then pkill -f gen.py ; fi
+      ignore_errors: yes
+
+- name: PREPARE BROKER
+  hosts: kafka_broker
+  gather_facts: no
+  become: yes
+  tags:
+    - k-producer
+  tasks:
+    - name: delete topic
+      run_once: yes
+      shell: |
+        kafka-topics --bootstrap-server localhost:9092 --delete --topic {{ k_topic }}
+      register: out
+      failed_when: out.rc == 1 and 'does not exist as expected' not in out.stdout
+
+    - name: pause 5 seconds
+      pause:
+        seconds: 5
+
+    - name: create topic
+      run_once: yes
+      shell: |
+        kafka-topics --bootstrap-server localhost:9092 \
+          --create --topic {{ k_topic }} --partitions {{ kp }}
+      register: out
+
+- name: GENERATE DATA
+  hosts: kafka_connect
+  gather_facts: no
+  become: yes
+  tags:
+    - k-producer
+  tasks:
+    - name: stop any running generator
+      run_once: yes
+      shell: |
+        # kill all current processes
+        if pgrep -f gen.py ; then pkill -f gen.py ; fi
+      ignore_errors: yes
+
+    - name: install confluent pip packages
+      shell: |
+        pip install confluent-kafka[avro]
+
+    - name: run 4 generators
+      shell: |
+        nohup python3 /tmp/gen.py {{ gen_count }} {{ hostvars[groups['schema_registry'][0]].private_hostname }} \
+          {{ hostvars[groups['kafka_broker'][0]].private_hostname }} 0 {{ k_topic }} client-id-2 &
+
+        nohup python3 /tmp/gen.py {{ gen_count }} {{ hostvars[groups['schema_registry'][0]].private_hostname }} \
+          {{ hostvars[groups['kafka_broker'][0]].private_hostname }} 0 {{ k_topic }} client-id-2 &
+
+        nohup python3 /tmp/gen.py {{ gen_count }} {{ hostvars[groups['schema_registry'][0]].private_hostname }} \
+          {{ hostvars[groups['kafka_broker'][0]].private_hostname }} 0 {{ k_topic }} client-id-2 &
+
+        nohup python3 /tmp/gen.py {{ gen_count }} {{ hostvars[groups['schema_registry'][0]].private_hostname }} \
+          {{ hostvars[groups['kafka_broker'][0]].private_hostname }} 0 {{ k_topic }} client-id-2 &
+
+    - name: wait 5 mins to load data into topic
+      pause:
+        minutes: 5

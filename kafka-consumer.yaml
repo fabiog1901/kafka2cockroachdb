@@ -1,0 +1,79 @@
+---
+- name: CONSUME DATA
+  hosts: kafka_connect
+  gather_facts: no
+  become: yes
+  tags:
+    - k-consumer
+  tasks:
+    - name: register JDBC Sink Connector
+      shell: |
+        curl -s -X POST http://{{ hostvars[groups['kafka_broker'][0]].private_hostname }}:8083/connectors/ -H "Content-Type: application/json" -d '{
+          "name": "sink-crdb",
+          "config": {
+            "value.converter.schema.registry.url": "http://{{ hostvars[groups['schema_registry'][0]].private_hostname }}:8081",
+            "name": "sink-crdb",
+            "connector.class": "io.confluent.connect.jdbc.JdbcSinkConnector",
+            "tasks.max": "{{ kp }}",
+            "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+            "value.converter": "io.confluent.connect.avro.AvroConverter",
+            "errors.tolerance": "all",
+            "errors.log.enable": "true",
+            "errors.log.include.messages": "true",
+            "topics": "{{ k_topic }}",
+            "errors.deadletterqueue.topic.name": "{{ k_topic }}_dlq",
+            "errors.deadletterqueue.topic.replication.factor": "1",
+            "connection.url": "jdbc:postgresql://{{ hostvars[groups['haproxy'][0]].public_ip }}:26257/defaultdb?reWriteBatchedInserts=true&ApplicationName={{ k_topic }}-{{ vcpus }}-{{ kp }}-{{ batch_size }}",
+            "connection.user": "cockroach",
+            "connection.password": "cockroach",
+            "insert.mode": "insert",
+            "batch.size": "{{ batch_size }}",
+            "pk.mode": "none",
+            "pk.fields": "none",
+            "auto.create": "false",
+            "auto.evolve": "false",
+            "max.retries": "3",
+            "consumer.override.max.poll.records": "{{ batch_size }}"
+          }
+        }'
+
+    - name: let the connector run for 7 minutes
+      pause:
+        minutes: 7
+
+    - name: delete JDBC Sink Connector
+      shell: |
+        curl -X DELETE http://{{ hostvars[groups['kafka_broker'][0]].private_hostname }}:8083/connectors/sink-crdb
+
+- name: COLLECT STATS
+  hosts: cockroachdb
+  gather_facts: no
+  become: yes
+  tags:
+    - k-consumer
+  tasks:
+    - name: pull stats via SQL for the previous 5 minutes starting 30 seconds ago
+      run_once: yes
+      shell: |
+        cockroach sql \
+          {{ (cockroachdb_secure) | ternary('--certs-dir=/var/lib/cockroach/certs', '--insecure') }} \
+          --host={{ cockroachdb_advertise_addr }}  \
+          -e "SELECT (count(*) / 300)::INT AS orders_per_second
+            FROM orders 
+            WHERE created_time BETWEEN now() - '330s'::INTERVAL AND now() - '30s'::INTERVAL;"
+      register: tps
+
+    - name: print stats
+      run_once: yes
+      debug:
+        msg:
+          - "cpus: {{ vcpus }}"
+          - "k-part: {{ kp }}"
+          - "batchsize: {{ batch_size }}"
+          - "TPS: {{ tps.stdout_lines[1] }}"
+
+    - name: save statistics to file
+      ansible.builtin.lineinfile:
+        path: /home/ubuntu/stats.csv
+        line: "{{ vcpus }}\t{{ kp }}\t{{ batch_size }}\t{{ tps.stdout_lines[1] }}"
+        create: yes
