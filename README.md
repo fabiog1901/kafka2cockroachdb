@@ -1,4 +1,4 @@
-# CockroachDB Connectors Performance Testing
+# Kafka 2 CockroachDB via JDBC Postgres Connector
 
 ## Test Infrastructure
 
