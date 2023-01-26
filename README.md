@@ -1,4 +1,4 @@
-# Kafka 2 CockroachDB via JDBC Postgres Connector
+# Kafka 2 CockroachDB via JDBC Sink Connector
 
 ## Test Infrastructure
 
