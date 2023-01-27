@@ -17,6 +17,7 @@ CLIENT_ID = sys.argv[6]
 
 if __name__ == '__main__':
 
+    # no need to set seed after all...
     rnd = random.Random()
     tbl = bytes.maketrans(
         bytearray(range(256)),
@@ -436,7 +437,7 @@ if __name__ == '__main__':
     
         # Trigger any available delivery report callbacks from previous produce() calls
         producer.poll(0)       
-        producer.produce(topic='orders', key=k, value=v, callback=delivery_callback)
+        producer.produce(topic=TOPIC, key=k, value=v, callback=delivery_callback)
 
 
     # Wait for any outstanding messages to be delivered and delivery report
