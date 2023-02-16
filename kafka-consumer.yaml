@@ -23,7 +23,7 @@
             "topics": "{{ k_topic }}",
             "errors.deadletterqueue.topic.name": "{{ k_topic }}_dlq",
             "errors.deadletterqueue.topic.replication.factor": "1",
-            "connection.url": "jdbc:postgresql://{{ hostvars[groups['haproxy'][0]].public_ip }}:26257/defaultdb?reWriteBatchedInserts=true&ApplicationName={{ k_topic }}-{{ vcpus }}-{{ kp }}-{{ batch_size }}",
+            "connection.url": "jdbc:postgresql://{{ hostvars[groups['haproxy'][0]].public_ip }}:26257/defaultdb?reWriteBatchedInserts=true&ApplicationName={{ k_topic }}-{{ vcpus }}-{{ "{:03}".format(kp) }}-{{ "{:03}".format(batch_size) }}",
             "connection.user": "cockroach",
             "connection.password": "cockroach",
             "insert.mode": "insert",

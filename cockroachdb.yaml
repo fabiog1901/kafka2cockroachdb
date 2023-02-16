@@ -227,14 +227,32 @@
       ansible.builtin.add_host: '{{ {"name": item.private_hostname} | combine(item.extra_vars) }}'
       loop: "{{ instances.out }}"
 
-    - name: save inventory .ini file
-      template:
-        src: ~/.ansible/collections/ansible_collections/fabiog1901/cockroachdb/templates/inventory.j2
+    - name: save cluster list of hosts
+      ansible.builtin.copy:
+        content: |
+          {% for item in groups %}
+          {% if item not in ['all', 'ungrouped'] %}
+          [{{item}}]
+          {% for entry in groups[item] %}
+          {{ entry }} ansible_host={{ hostvars[entry].ansible_host }} cloud={{ hostvars[entry].cloud }} cluster_name={{ hostvars[entry].cluster_name }}  group_name={{ hostvars[entry].group_name }} id={{ hostvars[entry].id }} region={{ hostvars[entry].region }} zone={{ hostvars[entry].zone }} private_hostname={{ hostvars[entry].private_hostname }} private_ip={{ hostvars[entry].private_ip }} public_hostname={{ hostvars[entry].public_hostname }} public_ip={{ hostvars[entry].public_ip }} ansible_user={{ hostvars[entry].ansible_user }} extra_vars="{{ hostvars[entry].extra_vars }}"
+          {% endfor %}
+
+          {% endif %}
+          {% endfor %}
         dest: "{{ deployment_id }}.ini"
 
     - name: save simplified list of hosts
-      template:
-        src: ~/.ansible/collections/ansible_collections/fabiog1901/cockroachdb/templates/inventory_simple.j2
+      ansible.builtin.copy:
+        content: |
+          {% for item in groups %}
+          {% if item not in ['all', 'ungrouped'] %}
+          [{{item}}]
+          {% for entry in groups[item] %}
+          {{ entry }} ==> {{ hostvars[entry].public_ip }} {{ hostvars[entry].cloud }} {{ hostvars[entry].region }}
+          {% endfor %}
+
+          {% endif %}
+          {% endfor %}
         dest: "{{ deployment_id }}.simple.ini"
 
 ##############
@@ -352,7 +370,7 @@
   tasks:
     - name: prepare sql script
       ansible.builtin.copy:
-        src: libs/s.sql
+        src: libs/.s.sql
         dest: s.sql
         mode: "0644"
         owner: "{{ ansible_user }}"
@@ -364,8 +382,10 @@
         cockroach sql \
           {{ (cockroachdb_secure) | ternary('--certs-dir=/var/lib/cockroach/certs', '--insecure') }} \
           --host={{ cockroachdb_advertise_addr }} < s.sql
+      register: out
 
     - name: check status of job - 4 hours timeout
+      run_once: yes
       shell: |
         cockroach sql \
           {{ (cockroachdb_secure) | ternary('--certs-dir=/var/lib/cockroach/certs', '--insecure') }} \
@@ -377,6 +397,7 @@
       delay: 30
 
     - name: fail on failed import if not due to key collision
+      run_once: yes
       shell: |
         cockroach sql \
           {{ (cockroachdb_secure) | ternary('--certs-dir=/var/lib/cockroach/certs', '--insecure') }} \

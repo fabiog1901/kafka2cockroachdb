@@ -19,6 +19,7 @@
   become: yes
   tags:
     - k-producer
+    - provision-topic
   tasks:
     - name: delete topic
       run_once: yes
@@ -44,6 +45,7 @@
   become: yes
   tags:
     - k-producer
+    - gen-data
   tasks:
     - name: stop any running generator
       run_once: yes
@@ -58,16 +60,16 @@
 
     - name: run 4 generators
       shell: |
-        nohup python3 /tmp/gen.py {{ gen_count }} {{ hostvars[groups['schema_registry'][0]].private_hostname }} \
+        nohup python3 /home/ubuntu/gen.py {{ gen_count }} {{ hostvars[groups['schema_registry'][0]].private_hostname }} \
           {{ hostvars[groups['kafka_broker'][0]].private_hostname }} 0 {{ k_topic }} client-id-2 &
 
-        nohup python3 /tmp/gen.py {{ gen_count }} {{ hostvars[groups['schema_registry'][0]].private_hostname }} \
+        nohup python3 /home/ubuntu/gen.py {{ gen_count }} {{ hostvars[groups['schema_registry'][0]].private_hostname }} \
           {{ hostvars[groups['kafka_broker'][0]].private_hostname }} 0 {{ k_topic }} client-id-2 &
 
-        nohup python3 /tmp/gen.py {{ gen_count }} {{ hostvars[groups['schema_registry'][0]].private_hostname }} \
+        nohup python3 /home/ubuntu/gen.py {{ gen_count }} {{ hostvars[groups['schema_registry'][0]].private_hostname }} \
           {{ hostvars[groups['kafka_broker'][0]].private_hostname }} 0 {{ k_topic }} client-id-2 &
 
-        nohup python3 /tmp/gen.py {{ gen_count }} {{ hostvars[groups['schema_registry'][0]].private_hostname }} \
+        #nohup python3 /home/ubuntu/gen.py {{ gen_count }} {{ hostvars[groups['schema_registry'][0]].private_hostname }} \
           {{ hostvars[groups['kafka_broker'][0]].private_hostname }} 0 {{ k_topic }} client-id-2 &
 
     - name: wait 5 mins to load data into topic
