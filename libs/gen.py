@@ -364,7 +364,7 @@ if __name__ == '__main__':
         
         v["acc_loc"] = str(rnd.choice([123, 354, 3451, 312, 23, 51, 23, 8123, 8354, 83451, 8312, 823, 851, 823]))
         v["acc_num"] = 'A-' + str(rnd.randint(10, 1e9)).zfill(10)
-        v["ts"] = rnd.randint(1609459200000,1672600083000) # between ~2020-12-31 and ~2023-01-01
+        v["ts"] = time.time() * 1000 # dt.datetime.utcnow() #rnd.randint(1609459200000,1672600083000) # between ~2020-12-31 and ~2023-01-01
         v["c_ts"] = rnd.randint(0, 100)
         v["send_timestamp"] = time.time() * 1000 # dt.datetime.utcnow()
         v["user_id"] = 'System'

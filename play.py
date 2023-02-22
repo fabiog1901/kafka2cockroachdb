@@ -4,6 +4,7 @@ from ansible_runner import Runner, RunnerConfig
 import yaml
 import os
 import sys
+import time
 
 pwd = os.getcwd()
 
@@ -22,7 +23,6 @@ rc = RunnerConfig(
     private_data_dir=pwd,
     playbook="kafka.yaml",
     extravars=ev,
-    verbosity=1,
     skip_tags=skip_tags
 )
 
@@ -84,3 +84,19 @@ for x in ev['cluster_cpus']:
 
             r3 = Runner(config=rc)
             r3.run()
+
+        rc = RunnerConfig(
+            private_data_dir=pwd,
+            playbook="kafka-producer.yaml",
+            extravars=ev,
+            inventory=f'k2crdb{x}.ini',
+            skip_tags="provision-topic,gen-data"
+        )
+
+        rc.prepare()
+
+        r4 = Runner(config=rc)
+        r4.run()
+        
+        time.sleep(600)
+

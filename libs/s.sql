@@ -5,7 +5,7 @@ SET CLUSTER SETTING enterprise.license = 'crl-0-xxxxxxxxxxxxx';
 -- avoid complications with scram-sha-256 by using old encryption mechanism
 SET CLUSTER SETTING server.user_login.password_encryption = 'crdb-bcrypt';
 
-CREATE USER cockroach WITH password 'cockroach';
+CREATE USER IF NOT EXISTS cockroach WITH password 'cockroach';
 GRANT admin TO cockroach;
 
 USE defaultdb;

@@ -4,22 +4,28 @@ gen_count: 10000000000
 k_topic: orders
 
 cluster_cpus:
-  - 8
   - 16
 
 k_partitions:
   - 18
+  - 36
   - 54
-  - 96
+  - 72
+  - 90
+  - 108
+  - 126
+  - 144
   - 162
 
 batch_sizes:
+  - 1
+  - 8
   - 16
   - 32
   - 64
   - 128
-  - 256
-  - 512
+  # - 256
+  # - 512
 
 owner: fabio
 state: present
@@ -100,12 +106,12 @@ deployment_crdb:
         - size: 100
           type: local_ssd
           delete_on_termination: true
-        - size: 100
-          type: local_ssd
-          delete_on_termination: true
-        - size: 100
-          type: local_ssd
-          delete_on_termination: true
+        # - size: 100
+        #   type: local_ssd
+        #   delete_on_termination: true
+        # - size: 100
+        #   type: local_ssd
+        #   delete_on_termination: true
     tags:
       Name: "{{ deployment_id }}-cockroach"
     groups:
@@ -126,13 +132,13 @@ deployment_kafka:
       os:
         size: 90
         type: standard_ssd
-      data:
-        - size: 1000
-          type: local_ssd
-          delete_on_termination: true
-        - size: 1000
-          type: local_ssd
-          delete_on_termination: true
+      data: []
+        # - size: 1000
+        #   type: local_ssd
+        #   delete_on_termination: true
+        # - size: 1000
+        #   type: local_ssd
+        #   delete_on_termination: true
     tags:
       Name: "{{ deployment_id }}-kbroker"
     groups:
