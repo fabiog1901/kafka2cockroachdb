@@ -406,3 +406,8 @@
       register: out2
       when: out1.stdout_lines[-1] == 'failed'
       failed_when: '"key collision" not in out.stdout'
+
+    - name: pause after IMPORT job
+      pause:
+        minutes: 15
+        
