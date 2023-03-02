@@ -2,6 +2,9 @@
 SET CLUSTER SETTING cluster.organization = 'Workshop';
 SET CLUSTER SETTING enterprise.license = 'crl-0-xxxxxxxxxxxxx';
 
+SET CLUSTER SETTING kv.snapshot_rebalance.max_rate = '256MiB';
+SET CLUSTER SETTING kv.snapshot_recovery.max_rate = '256MiB';
+
 -- avoid complications with scram-sha-256 by using old encryption mechanism
 SET CLUSTER SETTING server.user_login.password_encryption = 'crdb-bcrypt';
 
