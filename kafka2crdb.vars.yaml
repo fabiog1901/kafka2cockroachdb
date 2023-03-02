@@ -12,20 +12,18 @@ k_partitions:
   - 54
   - 72
   - 90
-  - 108
-  - 126
-  - 144
-  - 162
+  # - 108
+  # - 126
+  # - 144
+  # - 162
 
 batch_sizes:
   - 1
-  - 8
+  # - 8 
   - 16
   - 32
   - 64
   - 128
-  # - 256
-  # - 512
 
 owner: fabio
 state: present
@@ -95,23 +93,16 @@ deployment_crdb:
     exact_count: 1
     instance:
       cpu: "{{ vcpus | default(1) }}"
+    # instance_type: n2d-standard-16
     volumes:
       os:
         size: 10
         type: standard_ssd
       data:
-        - size: 100
-          type: local_ssd
+        - size: 1000
+          type: standard_ssd
           delete_on_termination: true
-        - size: 100
-          type: local_ssd
-          delete_on_termination: true
-        # - size: 100
-        #   type: local_ssd
-        #   delete_on_termination: true
-        # - size: 100
-        #   type: local_ssd
-        #   delete_on_termination: true
+
     tags:
       Name: "{{ deployment_id }}-cockroach"
     groups:

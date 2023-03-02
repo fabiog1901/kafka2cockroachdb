@@ -85,6 +85,7 @@ for x in ev['cluster_cpus']:
             r3 = Runner(config=rc)
             r3.run()
 
+        # stop the producer and pause 10 mins between partition test runs
         rc = RunnerConfig(
             private_data_dir=pwd,
             playbook="kafka-producer.yaml",
@@ -98,5 +99,6 @@ for x in ev['cluster_cpus']:
         r4 = Runner(config=rc)
         r4.run()
         
+        print("\npause 10 minutes between partition test runs....\n")
         time.sleep(600)
 
