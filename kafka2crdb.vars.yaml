@@ -1,0 +1,232 @@
+---
+# python gen producer
+gen_count: 10000000000
+k_topic: orders
+
+cluster_cpus:
+  - 32
+
+k_partitions:
+  - 18
+  - 36
+  - 54
+  - 72
+  - 90
+  # - 108
+  # - 126
+  # - 144
+  # - 162
+
+batch_sizes:
+  - 1
+  # - 8
+  - 16
+  - 32
+  - 64
+  - 128
+  - 256
+
+owner: fabio
+state: present
+
+regions:
+  defaults: &regions
+    user: ubuntu
+    public_ip: yes
+    public_key_id: workshop
+    tags:
+      owner: "{{ owner }}"
+  gcp:
+    defaults: &gcp
+      <<: *regions
+      cloud: gcp
+      image: projects/ubuntu-os-cloud/global/images/family/ubuntu-2004-lts
+      project: cea-team
+      security_groups:
+        - cockroachdb
+    us_east4:
+      defaults: &gcp_us_east4
+        <<: *gcp
+        region: us-east4
+        vpc_id: default
+      a: &gcp_us_east4_a
+        <<: *gcp_us_east4
+        zone: a
+        subnet: default
+      b: &gcp_us_east4_b
+        <<: *gcp_us_east4
+        zone: b
+        subnet: default
+      c: &gcp_us_east4_c
+        <<: *gcp_us_east4
+        zone: c
+        subnet: default
+
+##################
+# INFRASTRUCTURE #
+##################
+
+# VM INSTANCES
+deployment_crdb:
+  - cluster_name: cockroach
+    copies: 1
+    inventory_groups:
+      - haproxy
+    exact_count: 1
+    instance:
+      cpu: 4
+      mem: 8
+    volumes:
+      os:
+        size: 10
+        type: standard_ssd
+      data: []
+    tags:
+      Name: "{{ deployment_id }}-app"
+    groups:
+      - <<: *gcp_us_east4_a
+
+  - cluster_name: cockroach
+    copies: 1
+    inventory_groups:
+      - cockroachdb
+    exact_count: 3
+    # instance:
+    #   cpu: "{{ vcpus | default(1) }}"
+    instance_type: n2d-standard-32
+    volumes:
+      os:
+        size: 10
+        type: standard_ssd
+      data:
+        - size: 2500
+          type: standard_ssd
+          delete_on_termination: true
+
+    tags:
+      Name: "{{ deployment_id }}-cockroach"
+    groups:
+      - <<: *gcp_us_east4_a
+
+deployment_kafka:
+  - cluster_name: kafka
+    copies: 1
+    exact_count: 1
+    instance:
+      cpu: 16
+    extra_vars:
+      confluent_server_enabled: true
+      kafka_broker_schema_validation_enabled: true
+    volumes:
+      os:
+        size: 90
+        type: standard_ssd
+      data: []
+    tags:
+      Name: "{{ deployment_id }}-kbroker"
+    groups:
+      - <<: *gcp_us_east4_a
+        group_name: k-broker
+        security_groups:
+          - kafka
+        inventory_groups:
+          - zookeeper
+          - kafka_broker
+          - schema_registry
+          - kafka_rest
+          - kafka_connect
+        extra_vars:
+          broker_id: 0
+          kafka_broker_custom_properties:
+            # confluent.license: "{{ confluent_license }}"
+            offsets.topic.replication.factor: 1
+            # group.initial.rebalance.delay_ms: 0
+            confluent.license.topic.replication.factor: 1
+            confluent.balancer.topic.replication.factor: 1
+            confluent.reporters.telemetry.auto.enable: false
+            transaction.state.log.min.isr: 1
+            transaction.state.log.replication.factor: 1
+            confluent.metrics.reporter.topic.replicas: 1
+          # schema_registry_custom_properties:
+          #   confluent.license: "{{ confluent_license }}"
+          # kafka_connect_custom_properties:
+          #   confluent.license: "{{ confluent_license }}"
+          # kafka_rest_custom_properties:
+          #   confluent.license: "{{ confluent_license }}"
+          # kafka_connect_connectors:
+          #   - name: sample-connector
+          #     config:
+          #       confluent.license: "{{ confluent_license }}"
+
+      - <<: *gcp_us_east4_b
+        group_name: k-control-center
+        instance:
+          cpu: 4
+        security_groups:
+          - kafka
+        inventory_groups:
+          - ksql
+          - control_center
+        extra_vars:
+          {}
+          # control_center_custom_properties:
+          #   confluent.license: "{{ confluent_license }}"
+          # ksql_custom_properties:
+          #   confluent.license: "{{ confluent_license }}"
+
+############
+# PLATFORM #
+############
+
+# CONFLUENT KAFKA
+confluent_license: NOTAVAILABLE
+
+# OPENSSL CERTIFICATES
+certificates_organization_name: "{{ owner }}-org"
+certificates_dir: &certs certs
+certificates_usernames: &crdb_client_certs
+  - root
+  - app
+certificates_hosts: "{{ groups['cockroachdb'] }}"
+certificates_loadbalancer: "{{ groups['haproxy'] }}"
+
+# COCKROACHDB
+cockroachdb_deployment: standard
+cockroachdb_secure: yes
+cockroachdb_krb: no
+cockroachdb_krbsrvname: cockroach
+cockroachdb_certificates_dir: *certs
+cockroachdb_certificates_clients: *crdb_client_certs
+cockroachdb_version: latest
+cockroachdb_join:
+  - "{{ hostvars[( groups[cluster_name] | intersect(groups['cockroachdb']) )[0]].public_ip }}"
+  - "{{ hostvars[( groups[cluster_name] | intersect(groups['cockroachdb']) )[1]].public_ip }}"
+  - "{{ hostvars[( groups[cluster_name] | intersect(groups['cockroachdb']) )[2]].public_ip }}"
+cockroachdb_rpc_port: 26357
+cockroachdb_sql_port: 26257
+cockroachdb_http_addr_ip: "0.0.0.0"
+cockroachdb_http_addr_port: "8080"
+cockroachdb_cache: ".35"
+cockroachdb_max_sql_memory: ".35"
+# the value for below vars are fetched individually for each node from hostvars
+# these are variables that must be already available in the Ansible inventory
+cockroachdb_locality: "region={{ region | default('') }},zone={{ zone | default('') }}"
+cockroachdb_advertise_addr: "{{ public_ip | default('') }}"
+# cockroachdb_listen_addr: "{{ public_ip | default('') }}"
+# cockroachdb_attrs: "{{ extra_vars.attrs | default('std') }}"
+cockroachdb_cluster_organization: Workshop
+cockroachdb_enterprise_license: crl-0-xxxxxxxxx
+cockroachdb_encryption: no
+cockroachdb_encryption_key_old:
+cockroachdb_encryption_key_new:
+
+###############
+# APPLICATION #
+###############
+
+dbusers:
+  []
+  # - name: cockroach
+  #   password: cockroach
+  #   is_cert: no
+  #   is_admin: yes

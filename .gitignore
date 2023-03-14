@@ -1,0 +1,11 @@
+.*
+
+!.gitignore
+
+artifacts
+certs
+
+*.ini
+*.jar
+
+cockroach-data
