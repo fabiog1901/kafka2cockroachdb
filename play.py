@@ -102,3 +102,17 @@ for x in ev['cluster_cpus']:
         print("\npause 10 minutes between partition test runs....\n")
         time.sleep(600)
 
+
+    # fetching stats and tsdump
+    rc = RunnerConfig(
+        private_data_dir=pwd,
+        playbook="collect-stats.yaml",
+        extravars=ev,
+        inventory='k2crdb.ini',
+        skip_tags='local_stats'
+    )
+
+    rc.prepare()
+    r7 = Runner(config=rc)
+    r7.run()
+    

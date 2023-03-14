@@ -52,7 +52,7 @@
   tags:
     - k-consumer
   tasks:
-    - name: pull stats via SQL for the previous 5 minutes starting 30 seconds ago
+    - name: pull stats via SQL for the previous 5 minutes starting 60 seconds ago
       run_once: yes
       shell: |
         cockroach sql \
@@ -60,7 +60,7 @@
           --host={{ cockroachdb_advertise_addr }}  \
           -e "SELECT (count(*) / 300)::INT AS orders_per_second
             FROM orders 
-            WHERE created_time BETWEEN now() - '330s'::INTERVAL AND now() - '30s'::INTERVAL;"
+            WHERE created_time BETWEEN now() - '360s'::INTERVAL AND now() - '60s'::INTERVAL;"
       register: tps
 
     - name: print stats
@@ -77,3 +77,6 @@
         path: /home/ubuntu/stats.csv
         line: "{{ vcpus }}\t{{ kp }}\t{{ batch_size }}\t{{ tps.stdout_lines[1] }}"
         create: yes
+
+    - pause:
+        minutes: 5

@@ -1,0 +1,107 @@
+---
+- name: COLLECT STATS
+  hosts: cockroachdb
+  gather_facts: no
+  become: yes
+  tags:
+    - stats
+  tasks:
+    - name: check if certs file exists, signaling whether cluster is secure or not
+      run_once: yes
+      stat:
+        path: /var/lib/cockroach/certs
+      register: certdir
+
+    - name: tsdump
+      run_once: yes
+      shell: |
+        cockroach debug tsdump \
+          {{ (certdir.stat.exists) | ternary('--certs-dir=/var/lib/cockroach/certs', '--insecure') }} \
+          --format raw > tsdump.raw
+
+    - name: statement_statistics
+      run_once: yes
+      shell: |
+        cockroach sql \
+          {{ (certdir.stat.exists) | ternary('--certs-dir=/var/lib/cockroach/certs', '--insecure') }} \
+          --format csv \
+          -e "SELECT * FROM system.statement_statistics where length(btrim(app_name)) != 0;" > ss.csv
+
+    - name: transaction_statistics
+      run_once: yes
+      shell: |
+        cockroach sql \
+          {{ (certdir.stat.exists) | ternary('--certs-dir=/var/lib/cockroach/certs', '--insecure') }} \
+          --format csv \
+          -e "SELECT * FROM system.transaction_statistics where length(btrim(app_name)) != 0;" > ts.csv
+
+    - name: gzip 3 files
+      run_once: yes
+      shell: |
+        gzip --keep --force ss.csv
+        gzip --keep --force ts.csv
+        gzip --keep --force tsdump.raw
+
+        chown ubuntu:ubuntu *.gz
+
+    - name: download gz files to localhost
+      run_once: yes
+      ansible.builtin.fetch:
+        src: "/home/ubuntu/{{ item }}"
+        dest: "{{ item }}"
+        flat: yes
+      loop:
+        - stats.csv
+        - ss.csv.gz
+        - ts.csv.gz
+        - tsdump.raw.gz
+
+- name: LOAD TSDUMP + METRICS ONTO LOCAL CLUSTER
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  become: no
+  tags:
+    - local_stats
+  environment:
+    - COCKROACH_DEBUG_TS_IMPORT_FILE: tsdump.raw
+    - COCKROACH_DEBUG_TS_IMPORT_MAPPING_FILE: tsdump.yaml
+  tasks:
+    - name: unzip gz files
+      shell: |
+        gunzip --keep --force ss.csv.gz
+        gunzip --keep --force ts.csv.gz
+        gunzip --keep --force tsdump.raw.gz
+
+    # the file has to be created according to cluster deployment spec
+    - name: create file tsdump.yaml
+      ansible.builtin.copy:
+        content: |
+          1: 1
+          2: 2
+          3: 3
+          4: 4
+        dest: tsdump.yaml
+
+    - name: create throwaway cluster
+      shell: |
+        killall cockroach
+        rm -rf cockroach-data
+        cockroach start-single-node --insecure --background
+        sleep 30
+
+    - name: place stats csv files in extern dir for import
+      shell: |
+        mkdir -p cockroach-data/extern
+        cp ss.csv cockroach-data/extern
+        cp ts.csv cockroach-data/extern
+
+    # not idempotent, but irrelevant if you destroy cluster and delete cockroach-data dir
+    - name: on a sql prompt..
+      shell: |
+        cockroach sql --insecure \
+          -e "SET CLUSTER SETTING sql.stats.automatic_collection.enabled = false;
+          INSERT INTO system.users VALUES ('node', NULL, true, 1000);
+          GRANT node TO root;
+          IMPORT INTO system.statement_statistics (aggregated_ts, fingerprint_id, transaction_fingerprint_id, plan_hash, app_name, node_id, agg_interval, metadata, statistics, plan, index_recommendations) CSV DATA ('nodelocal://1/ss.csv') WITH skip = '1';
+          IMPORT INTO system.transaction_statistics (aggregated_ts, fingerprint_id, app_name, node_id, agg_interval, metadata, statistics) CSV DATA ('nodelocal://1/ts.csv') WITH skip = '1';"

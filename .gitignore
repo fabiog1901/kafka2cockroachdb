@@ -8,3 +8,4 @@ certs
 *.ini
 *.jar
 
+cockroach-data

@@ -4,7 +4,7 @@ gen_count: 10000000000
 k_topic: orders
 
 cluster_cpus:
-  - 16
+  - 32
 
 k_partitions:
   - 18
@@ -19,11 +19,12 @@ k_partitions:
 
 batch_sizes:
   - 1
-  # - 8 
+  # - 8
   - 16
   - 32
   - 64
   - 128
+  - 256
 
 owner: fabio
 state: present
@@ -70,7 +71,6 @@ deployment_crdb:
   - cluster_name: cockroach
     copies: 1
     inventory_groups:
-      - app
       - haproxy
     exact_count: 1
     instance:
@@ -84,22 +84,22 @@ deployment_crdb:
     tags:
       Name: "{{ deployment_id }}-app"
     groups:
-      - <<: *gcp_us_east4_b
+      - <<: *gcp_us_east4_a
 
   - cluster_name: cockroach
     copies: 1
     inventory_groups:
       - cockroachdb
-    exact_count: 1
-    instance:
-      cpu: "{{ vcpus | default(1) }}"
-    # instance_type: n2d-standard-16
+    exact_count: 3
+    # instance:
+    #   cpu: "{{ vcpus | default(1) }}"
+    instance_type: n2d-standard-32
     volumes:
       os:
         size: 10
         type: standard_ssd
       data:
-        - size: 1000
+        - size: 2500
           type: standard_ssd
           delete_on_termination: true
 
@@ -107,8 +107,6 @@ deployment_crdb:
       Name: "{{ deployment_id }}-cockroach"
     groups:
       - <<: *gcp_us_east4_a
-      - <<: *gcp_us_east4_b
-      - <<: *gcp_us_east4_c
 
 deployment_kafka:
   - cluster_name: kafka
@@ -124,12 +122,6 @@ deployment_kafka:
         size: 90
         type: standard_ssd
       data: []
-        # - size: 1000
-        #   type: local_ssd
-        #   delete_on_termination: true
-        # - size: 1000
-        #   type: local_ssd
-        #   delete_on_termination: true
     tags:
       Name: "{{ deployment_id }}-kbroker"
     groups:
@@ -210,7 +202,8 @@ cockroachdb_join:
   - "{{ hostvars[( groups[cluster_name] | intersect(groups['cockroachdb']) )[0]].public_ip }}"
   - "{{ hostvars[( groups[cluster_name] | intersect(groups['cockroachdb']) )[1]].public_ip }}"
   - "{{ hostvars[( groups[cluster_name] | intersect(groups['cockroachdb']) )[2]].public_ip }}"
-cockroachdb_port: 26257
+cockroachdb_rpc_port: 26357
+cockroachdb_sql_port: 26257
 cockroachdb_http_addr_ip: "0.0.0.0"
 cockroachdb_http_addr_port: "8080"
 cockroachdb_cache: ".35"
