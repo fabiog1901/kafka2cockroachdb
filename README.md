@@ -175,6 +175,13 @@ _Hardware Dashboard -> CPU Utilization - Sometimes load is slightly uneven, even
 - Transaction latency varies in multi-region clusters, as you can expect transactions have to ensure at least 1 out of region replica has to be kept in sync.
 - Other factors impacting latency include, but are not limited to: read/write ratio, count of secondary indexes, database topology, client location, record size.
 
+## Next
+
+In this project, I have tweaked both the driver and the `kafka-connect-jdbc` connector. For my next tests, I like to:
+
+- Explore best ways to optimize the Kafka Connector, possibly working along with the Confluent engineering team.
+- Replace the standard JDBC PostgreSQL Driver with the [`cockroachdb-jdbc`](https://github.com/cockroachlabs-field/cockroachdb-jdbc) driver, kindly developed and maintained by [Kai Niemi](https://blog.cloudneutral.se/).
+
 ## References
 
 - [CockroachDB](https://www.cockroachlabs.com/product/)
