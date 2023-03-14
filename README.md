@@ -4,6 +4,11 @@ This is a short write up on the exercise of inserting batches of Kafka Records i
 
 The pipeline is very simple:
 
+1. A python script generates data that gets ingested into a Kafka Topic withing the Kafka Broker.
+2. The Topic is partitioned.
+3. Exactly 1 Kafka Connect _task_ is started for each partition.
+4. The Task reads from the topic partition and inserts into CockroachDB by making a conneciton through the Load Balancer.
+
 ![pipeline](media/pipeline.png)
 
 ## Test Infrastructure and Components Setup
@@ -62,10 +67,10 @@ In short, for each instance type, we cycled through all partitions, and for each
 On each **partition** cycle, the JDBC Sink Connector was created with `tasks.max` set to the same number as the partition count.
 Here, a _task_ is a process that creates a database connection, consumes records from the assigned topic partition, prepares the INSERT statement and finally sends it to CockroachDB for execution.
 
-On each **batch size** cycle, the JDBC Sink Connector was created with `batch.size` and `consumer.override.max.poll.records` set to the current value.
+On each **batch size** cycle, the JDBC Sink Connector was created with `batch.size` and `consumer.override.max.poll.records` set to the current `batch_size` value.
 
 Results of transaction latency, throughput (TPS) and CPU util are shown below for each of the test cases.
-`per_stmt_latency_ms` is a derived by dividing `txn_latency_ms` by `batch_size`.
+`per_stmt_latency_ms` is a computed value, derived by dividing `txn_latency_ms` by `batch_size`.
 
 ### Using n2d-standard-8
 
@@ -165,10 +170,10 @@ _Hardware Dashboard -> CPU Utilization - Sometimes load is slightly uneven, even
 
 ## Considerations
 
-- It is generally recommended to keep the CPU Utilization of the cluster at around 50% as to have headroom for sudden spikes or node failures.
+- It is generally recommended to keep the cluster CPU Utilization at around 50% as to have headroom for sudden spikes or node failures.
 - Write throughput varies grately depending on the hardware utilized. See public clouds hardware recommendation for CockroachDB in the [Cloud Report](https://www.cockroachlabs.com/guides/2022-cloud-report/).
 - Transaction latency varies in multi-region clusters, as you can expect transactions have to ensure at least 1 out of region replica has to be kept in sync.
-- Other factors impacting latency include, but not limited to: read/write ratio, count of secondary indexes, database topology, client location, record size.
+- Other factors impacting latency include, but are not limited to: read/write ratio, count of secondary indexes, database topology, client location, record size.
 
 ## References
 
