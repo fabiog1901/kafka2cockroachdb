@@ -163,9 +163,12 @@ _Replication Dashboard -> Leaseholders per Node_
 _Hardware Dashboard -> CPU Utilization - Sometimes load is slightly uneven, even if the workload is perfectly distributed_
 ![32-cpu-util](media/32-cpu-util.png)
 
-## Findings
+## Considerations
 
-
+- It is generally recommended to keep the CPU Utilization of the cluster at around 50% as to have headroom for sudden spikes or node failures.
+- Write throughput varies grately depending on the hardware utilized. See public clouds hardware recommendation for CockroachDB in the [Cloud Report](https://www.cockroachlabs.com/guides/2022-cloud-report/).
+- Transaction latency varies in multi-region clusters, as you can expect transactions have to ensure at least 1 out of region replica has to be kept in sync.
+- Other factors impacting latency include, but not limited to: read/write ratio, count of secondary indexes, database topology, client location, record size.
 
 ## References
 
